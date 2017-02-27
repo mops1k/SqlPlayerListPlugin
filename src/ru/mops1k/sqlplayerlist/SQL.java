@@ -6,10 +6,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
 import java.sql.*;
-import java.sql.Date;
 import java.text.SimpleDateFormat;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 class SQL {
     private final Thread executor = new Thread(new SQLExecutor());
@@ -124,11 +121,14 @@ class SQL {
             case 0:
                 ResultSet rs = this.playerData(player);
                 try {
-                    Date last_login = null;
+                    Timestamp last_login = null;
                     if (rs != null) {
-                        last_login = rs.getDate("last_login");
-                        long total_time = timePoint.getTime() - last_login.getTime();
-                        this.query += " total_time = " + total_time + ", \n";
+                        last_login = rs.getTimestamp("last_login");
+                        java.util.Date last_date = new java.util.Date(last_login.getTime());
+
+                        long total_time = timePoint.getTime() - last_date.getTime();
+                        Plugin.getInstance().getLogger().info("Player '" + player.getName() + "' was online " + total_time/1000 + " seconds");
+                        this.query += " total_time = total_time + " + total_time/1000 + ", \n";
                     }
                 } catch (SQLException e) {
                     e.printStackTrace();
@@ -174,7 +174,6 @@ class SQL {
                     " WHERE server = '" + this.server + "' AND player = '" + player.getName() + "'");
             ResultSet rs = statement.executeQuery();
             rs.next();
-            this.disconnect();
 
             return rs;
         } catch (SQLException | JSchException e) {
@@ -185,7 +184,6 @@ class SQL {
     }
 
     private boolean playerExists(Player player) {
-        Plugin.getInstance().getLogger().info("Checking the player existence in the table...");
         try {
             this.connect();
             PreparedStatement statement = this.connection.prepareStatement("SELECT 1 FROM " + this.table +
@@ -210,7 +208,7 @@ class SQL {
                 "`server` VARCHAR(50) NULL,\n" +
                 "`player` VARCHAR(50) NULL,\n" +
                 "`status` SMALLINT NULL DEFAULT NULL,\n" +
-                "`total_time` INT NULL DEFAULT NULL,\n" +
+                "`total_time` INT NULL DEFAULT '0',\n" +
                 "`last_login` DATETIME NULL DEFAULT NULL,\n" +
                 "`last_logout` DATETIME NULL DEFAULT NULL\n" +
                 ")";
